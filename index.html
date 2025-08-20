@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YOLO-Like Object Detection with Webcam</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #container { position: relative; display: inline-block; }
+        canvas { position: absolute; top: 0; left: 0; }
+    </style>
+</head>
+<body>
+    <h1>YOLO-Like Real-Time Object Detection</h1>
+    <p>Grant camera access to start detecting objects!</p>
+    <div id="container">
+        <video id="webcam" width="640" height="480" autoplay playsinline></video>
+        <canvas id="canvas" width="640" height="480"></canvas>
+    </div>
+    <button onclick="stopDetection()">Stop</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let model;
+        let running = true;
+
+        // Load the model
+        async function loadModel() {
+            model = await cocoSsd.load();
+            console.log('Model loaded!');
+        }
+
+        // Access webcam
+        async function setupWebcam() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                video.play();
+                detectObjects();
+            };
+        }
+
+        // Detect objects in real-time
+        async function detectObjects() {
+            if (!running) return;
+            if (model && video.readyState === video.HAVE_ENOUGH_DATA) {
+                // Run detection
+                const predictions = await model.detect(video);
+
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw predictions
+                predictions.forEach(prediction => {
+                    const [x, y, width, height] = prediction.bbox;
+                    ctx.strokeStyle = '#00FF00';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, width, height);
+                    ctx.fillStyle = '#00FF00';
+                    ctx.fillText(`${prediction.class} (${Math.round(prediction.score * 100)}%)`, x, y > 10 ? y - 5 : 10);
+                });
+            }
+            requestAnimationFrame(detectObjects);
+        }
+
+        function stopDetection() {
+            running = false;
+            video.srcObject.getTracks().forEach(track => track.stop());
+        }
+
+        // Initialize
+        loadModel().then(setupWebcam);
+    </script>
+</body>
+</html>
